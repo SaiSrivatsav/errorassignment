@@ -1,0 +1,12 @@
+{
+    "Departments": [
+        {
+            "departmentId": "MDM",
+            "departmentText": "MDM Team"
+        },
+        {
+            "departmentId": "MM",
+            "departmentText": "MM Team"
+        }
+    ]
+}

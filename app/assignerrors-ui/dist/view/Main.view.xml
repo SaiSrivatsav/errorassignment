@@ -1,0 +1,90 @@
+<mvc:View xmlns:core="sap.ui.core" xmlns:f="sap.f" controllerName="ladera.fin.assignerrorsui.controller.Main"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+    <f:DynamicPage id="re-fin-dynPage" showFooter="true">        
+        <f:content>
+            <Table id="re-fin-errorTable" 
+                    width="auto"
+                    mode="MultiSelect"
+                    fixedLayout="false"
+                    inset="true"
+                    items="{errorModel>/}">
+                <headerToolbar>
+                    <OverflowToolbar >
+                        <Title text="Errors Assigned(0)" level="H2"></Title>
+                        <ToolbarSpacer ></ToolbarSpacer>
+                        <Button id="re-fin-addError" type="Emphasized" icon="sap-icon://sys-add" text="Add" press="onAddItem"></Button>
+                    </OverflowToolbar>
+                </headerToolbar>
+
+                <noData>
+                    <IllustratedMessage id="re-fin-nodataMsg"
+                                        illustrationType="sapIllus-NoSearchResults"
+                                        title="No errors are assigned to departments"
+                                        description="Click on 'Add Items' to assign errror codes to respective departments">
+                    </IllustratedMessage>                    
+                </noData>
+
+            <columns>
+                <Column width="auto">
+                    <header>
+                        <Label text="Error Code"></Label>
+                    </header>
+                </Column>
+
+                <Column width="auto">
+                    <header>
+                        <Label text="Description"></Label>
+                    </header>
+                </Column>
+
+                <Column width="auto">
+                    <header>
+                        <Label text="Department"></Label>
+                    </header>
+                </Column>
+
+                <Column width="auto">
+                    <header>
+                        <Label text="Email Id"></Label>
+                    </header>
+                </Column>
+
+                <Column id="re-fin-editColumn"></Column>
+
+                <Column id="re-fin-deleteColumn"></Column>
+
+            </columns>
+
+            <items>
+                <ColumnListItem >
+                    <Input editable="true" value="{errorModel>errorCode}" maxLength="10" width="auto"></Input>
+
+                    <Input editable="true" value="{errorModel>description}" maxLength="80" width="200px"></Input>
+
+                    <ComboBox items="{path: 'configModel>/Departments', templateShareable: true}" 
+                              editable="true" 
+                              width="auto"
+                              change="onChangeofDepartment" 
+                              selectedKey="{errorModel>departmentId}">
+                        <core:ListItem key="{configModel>departmentId}" text="{configModel>departmentText}"></core:ListItem>
+                    </ComboBox>
+
+                    <Input editable="true" value="{errorModel>emailId}" type="Email" width="auto"></Input>
+
+                    <Button icon="sap-icon://edit" enabled="true" type="Attention" press="onEdit" width="auto"></Button>
+
+                    <Button icon="sap-icon://delete" enabled="true" type="Reject" press="onDelete" width="auto"></Button>
+
+                </ColumnListItem>
+            </items>
+            </Table>
+        </f:content>
+        <f:footer>
+            <OverflowToolbar >
+                <ToolbarSpacer />
+                <Button id="re-fin-saveData" text="Save" type="Accept" enabled="true"></Button>
+            </OverflowToolbar>
+        </f:footer>
+    </f:DynamicPage>
+</mvc:View>
