@@ -83,7 +83,7 @@
         <f:footer>
             <OverflowToolbar >
                 <ToolbarSpacer />
-                <Button id="re-fin-saveData" text="Save" type="Accept" enabled="true"></Button>
+                <Button id="re-fin-saveData" text="Save" type="Accept" enabled="true" press="onSave"></Button>
             </OverflowToolbar>
         </f:footer>
     </f:DynamicPage>

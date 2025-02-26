@@ -60,7 +60,7 @@
                 <ColumnListItem >
                     <Input editable="true" value="{errorModel>errorCode}" maxLength="10" width="auto"></Input>
 
-                    <Input editable="true" value="{errorModel>description}" maxLength="80" width="200px"></Input>
+                    <Input editable="true" value="{errorModel>description}" maxLength="80" width="270px"></Input>
 
                     <ComboBox items="{path: 'configModel>/Departments', templateShareable: true}" 
                               editable="true" 
@@ -83,7 +83,7 @@
         <f:footer>
             <OverflowToolbar >
                 <ToolbarSpacer />
-                <Button id="re-fin-saveData" text="Save" type="Accept" enabled="true"></Button>
+                <Button id="re-fin-saveData" text="Save" type="Accept" enabled="true" press="onSave"></Button>
             </OverflowToolbar>
         </f:footer>
     </f:DynamicPage>
