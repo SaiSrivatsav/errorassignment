@@ -34,7 +34,7 @@ sap.ui.define([
                 }
                 oModel.setData(aData);
             }
-            this.setTableProperties();
+            // this.setTableProperties();
             BusyIndicator.hide();
         },
 
@@ -155,7 +155,7 @@ sap.ui.define([
             oData.unshift(item);
             oModel.setData(oData);
             oModel.refresh();
-            this.setTableProperties();
+            // this.setTableProperties();
         },
 
         setTableProperties() {
