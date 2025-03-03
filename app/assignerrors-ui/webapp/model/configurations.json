@@ -8,5 +8,14 @@
             "departmentId": "MM",
             "departmentText": "MM Team"
         }
-    ]
+    ],
+    "ErrorLogItem":{
+        "errorCode": "",
+        "message": "",
+        "subtitle": "",
+        "target": "",
+        "title": "",
+        "activeTitle": "",
+        "groupName": ""
+    }
 }

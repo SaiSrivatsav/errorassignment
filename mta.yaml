@@ -90,7 +90,7 @@ resources:
   parameters:
     config:
       tenant-mode: dedicated
-      xsappname: errorassignment-${org}-${space}
+      xsappname: errorassignment-${space}
     path: ./xs-security.json
     service: xsuaa
     service-plan: application

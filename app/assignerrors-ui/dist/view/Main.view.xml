@@ -5,7 +5,7 @@
         <f:content>
             <Table id="re-fin-errorTable" 
                     width="auto"
-                    mode="MultiSelect"
+                    mode="None"
                     fixedLayout="false"
                     inset="true"
                     items="{errorModel>/}">
@@ -57,7 +57,7 @@
             </columns>
 
             <items>
-                <ColumnListItem >
+                <ColumnListItem>
                     <Input editable="true" value="{errorModel>errorCode}" maxLength="10" width="auto"></Input>
 
                     <Input editable="true" value="{errorModel>description}" maxLength="80" width="400px"></Input>
@@ -82,8 +82,10 @@
         </f:content>
         <f:footer>
             <OverflowToolbar >
+                <Button id="re-fin-errorLog" icon="sap-icon://status-error" type="Reject" press="showErrorLogs" visible="false"></Button>
                 <ToolbarSpacer />
-                <Button id="re-fin-saveData" text="Save" type="Accept" enabled="true" press="onSave"></Button>
+                <Button id="re-fin-saveData" text="Save" type="Emphasized" enabled="true" press="onSave"></Button>
+                <Button id="re-fin-cancel" text="Cancel" press="onCancel"></Button>
             </OverflowToolbar>
         </f:footer>
     </f:DynamicPage>
