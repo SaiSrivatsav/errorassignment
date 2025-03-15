@@ -2,8 +2,13 @@ sap.ui.define([
     "sap/ui/core/mvc/Controller",
     "sap/ui/core/BusyIndicator",
     "sap/ui/model/json/JSONModel",
-    "sap/m/MessageBox"
-], (Controller, BusyIndicator, JSONModel, MessageBox) => {
+    "sap/m/MessageBox",
+    "sap/ui/core/Messaging",
+    "sap/ui/core/message/Message",
+    "sap/m/MessagePopover",
+    "sap/ui/dom/isBehindOtherElement",
+    "sap/ui/core/Element"
+], (Controller, BusyIndicator, JSONModel, MessageBox, Messaging, Message, MessagePopover, isBehindOtherElement, Element)  => {
     "use strict";
 
     var oMessagePopover;
@@ -16,10 +21,66 @@ sap.ui.define([
         onRouteMatched(oEvent) {
             this.getView().getModel("errorModel").setData([]);
             this.existingData = [];
+            //Error Logs Setup
+            this._MessageManager = Messaging;
+            this._MessageManager.removeAllMessages();
+            this._MessageManager.registerObject(this.getView().byId("re-fin-errorTable"), true);
+            this.getView().setModel(this._MessageManager.getMessageModel(),"message");
             this.errorLogs = [];
             this.errorItem = this.getView().getModel("configModel").getData().ErrorLogItem;
-            this.getView().setModel(this.errorLogs, "ErrorLogs");
+            var oJsonErrLogModel = new JSONModel();
+            this.getView().setModel(oJsonErrLogModel, "ErrorLogs");
+            // this.createErrorPopover();
             this.setDefaultData(oEvent);
+        },
+
+        createErrorPopover(){
+            var that = this;
+            this.oMessagePopover = new MessagePopover({
+				activeTitlePress: function (oEvent) {
+					var oItem = oEvent.getParameter("item"),
+						oPage = that.getView().byId("re-fin-dynPage"),
+						oMessage = oItem.getBindingContext("message").getObject(),
+						oControl = Element.registry.get(oMessage.getControlId());
+
+					if (oControl) {
+						oPage.scrollToElement(oControl.getDomRef(), 200, [0, -100]);
+						setTimeout(function(){
+							var bIsBehindOtherElement = isBehindOtherElement(oControl.getDomRef());
+							if (bIsBehindOtherElement) {
+								this.close();
+							}
+							if (oControl.isFocusable()) {
+								oControl.focus();
+							}
+						}.bind(this), 300);
+					}
+				},
+				items: {
+					path:"ErrorLogs>/",
+					template: new MessageItem(
+						{
+							title: "{ErrorLogs>message}",
+							subtitle: "{ErrorLogs>additionalText}",
+							groupName: {parts: [{path: 'message>controlIds'}], formatter: this.getGroupName},
+							activeTitle: {parts: [{path: 'message>controlIds'}], formatter: this.isPositionable},
+							type: "{message>type}",
+							description: "{message>message}"
+						})
+				},
+				groupItems: true
+			});
+
+			this.getView().byId("messagePopoverBtn").addDependent(this.oMessagePopover);
+        },
+
+        getGroupName(sControlId){
+            var oControl = Element.registry.get(sControlId);
+            return "Error code";
+        },
+
+        isPositionable(sControlId){
+            return sControlId ? true : true;
         },
 
         async setDefaultData(oEvent) {
@@ -35,6 +96,7 @@ sap.ui.define([
                     oPayload.description = element.description;
                     oPayload.departmentId = element.department;
                     oPayload.emailId = element.emailId;
+                    oPayload.saved = true;
                     aData.push(oPayload);
                 }
                 oModel.setData(aData);
@@ -52,12 +114,17 @@ sap.ui.define([
                 if (!response.ok) {
                     const errorText = await response.text();
 
-                    this.errorItem.errorCode = response.status;
-                    this.errorItem.message = errorText;
-                    this.errorItem.subtitle = "Initial load";
-                    this.errorItem.activeTitle = "Initial load";
-                    this.errorLogs.push(this.errorItem);
-
+                    let oErrorItem = {
+                        "errorCode": response.status,
+                        "message": errorText,
+                        "subtitle": "Initial load",
+                        "target": "",
+                        "title": "Initial load",
+                        "activeTitle": "Initial fetch",
+                        "groupName": response.status
+                    }
+                    this.errorLogs.push(oErrorItem);
+                    this.getView().getModel("ErrorLogs").setData(this.errorLogs);
                     this.viewLogs();
 
                     BusyIndicator.hide();
@@ -87,7 +154,8 @@ sap.ui.define([
                 items:{
                     path: 'ErrorLogs>/',
                     template: oMessageTemplate
-                }
+                },
+                groupItems: true
             });
 
             oErrorLog.addDependent(this.oMessagePopover);
@@ -97,7 +165,7 @@ sap.ui.define([
         showErrorLogs(oEvent){
             this.byId("re-fin-errorLog").addEventDelegate({
                 "onAfterRendering": function () {
-                oMessagePopover.openBy(this.byId("re-fin-errorLog"));
+                this.oMessagePopover.openBy(this.byId("re-fin-errorLog"));
                  }
                 }, this);
            this.oMessagePopover.toggle(oEvent.getSource());
@@ -121,14 +189,18 @@ sap.ui.define([
             var sDeleteIndex = oEvent.getSource().getParent().getBindingContext("errorModel").sPath.split("/")[1];
             const oErrorCode = oEvent.getSource().getModel("errorModel").getData()[sDeleteIndex];
             const exists = this.existingData.some(item => item.errorcode === oErrorCode.errorCode);
-            if (exists) {
+            if (exists && oErrorCode.saved) {
                 var that = this;
                 MessageBox.confirm("Are you sure? This entry will be permanently deleted from the database.", {
                     actions: ["Yes", MessageBox.Action.CLOSE],
                     emphasizedAction: "CLOSE",
-                    onClose: function (sAction) {
+                    onClose: async function (sAction) {
                         if (sAction === 'Yes') {
-                            that.removeEntry(oErrorCode, oEvent);
+                            const delResp = await that.removeEntry(oErrorCode, oEvent);
+                            // if (delResp.ok) {
+                            //     oEvent.getSource().getModel("errorModel").getData().splice(sDeleteIndex, 1);
+                            //     oEvent.getSource().getModel("errorModel").refresh();                
+                            // }
                         }                        
                     }
                 });
@@ -161,36 +233,87 @@ sap.ui.define([
         async onSave(oEvent) {
             BusyIndicator.show();
             var aPromises = [];
+            var aUpdatePromises=[];
+            var executeCheck = true;
             var oData = this.getView().getModel("errorModel").getData();
             var oPayload = {};
-            for (let index = 0; index < oData.length; index++) {
-                var element = oData[index];
-                var checkExist = this.existingData.some(item => item.errorcode === element.errorCode);
-                if (!checkExist) {
-                    MessageBox
-                }else {
-                    oPayload = {
-                        "errorcode": element.errorCode,
-                        "description": element.description,
-                        "department": element.departmentId,
-                        "emailId": element.emailId
-                    };
-                    aPromises.push(this.getSavePromise(oPayload));
-                }
+            var oUpdatePayload={};
+            var mandatoryCheck = this.getMandatoryCheck();
+            if (mandatoryCheck) {
+                for (let index = 0; index < oData.length; index++) {
+                    var element = oData[index];
+                    if (!element.saved) {
+                        var checkExist = this.existingData.some(item => item.errorcode === element.errorCode);
+                        if (checkExist) {
+                            MessageBox.error(`Error code ${element.errorCode}  already exists.`);
+                            executeCheck = false;
+                            BusyIndicator.hide();
+                            break;
+                        }else {
+                            oPayload = {
+                                "errorcode": element.errorCode,
+                                "description": element.description,
+                                "department": element.departmentId,
+                                "emailId": element.emailId
+                            };
+                            aPromises.push(this.getSavePromise(oPayload));
+                        }
+                    }else{
+                        oUpdatePayload = {
+                            "errorcode": element.errorCode,
+                            "description": element.description,
+                            "department": element.departmentId,
+                            "emailId": element.emailId
+                        };
+                        const ID = this.existingData.find(item => item.errorcode === element.errorCode).ID;
+                        aPromises.push(this.getUpdatePromise(oUpdatePayload, ID));
+                    }
+                };
+                var resultingList = [];
+                var that = this;
+                if (aPromises.length > 0 && executeCheck) {
+                    await Promise.all(aPromises).then(function (oResp, oError) {
+                        resultingList.push(oResp);
+                        that.setDefaultData(oEvent);
+                        BusyIndicator.hide();
+                        MessageBox.success("Data saved and updated successfully");
+                    }).catch(function (oErr) {
+                        BusyIndicator.hide();
+                        var errorResp = JSON.parse(oErr.responseText).error;
+                        // MessageBox.error(errorResp.message + ": " + errorResp.target);
+                        MessageBox.error(errorResp);
+                    });                
+                }else{
+                    BusyIndicator.hide();
+                }                
+            }else{
+                BusyIndicator.hide();
             }
-            var resultingList = [];
-            if (aPromises) {
-                await Promise.all(aPromises).then(function (oResp, oError) {
-                    resultingList.push(oResp);
-                    this.setDefaultData(oEvent);
-                    BusyIndicator.hide();
-                    MessageBox.success("Data saved successfully");
-                }).catch(function (oErr) {
-                    BusyIndicator.hide();
-                    var errorResp = JSON.parse(oErr.responseText).error;
-                    // MessageBox.error(errorResp.message + ": " + errorResp.target);
-                    MessageBox.error(errorResp);
-                });                
+        },
+
+        getMandatoryCheck(){
+            var mandatoryFail = 0;
+            const oModelData = this.getView().getModel("errorModel").getData();
+            var oTable = this.getView().byId("re-fin-errorTable");
+            var oItems = oTable.getItems();
+            for (let index = 0; index < oItems.length; index++) {
+                const element = oItems[index];
+                for (let j = 0; j < element.getCells().length - 1; j++) {
+                    var cell = element.getCells()[j];
+                    if (cell.getValue() === "") {
+                        cell.setValueState("Error");
+                        cell.setValueStateText("Value is required");
+                        mandatoryFail++;
+                    }else{
+                        cell.setValueState("None");
+                        cell.setValueStateText("");
+                    }
+                }  
+            }
+            if (mandatoryFail > 0) {
+                return false;
+            }else{
+                return true;
             }
         },
 
@@ -199,6 +322,23 @@ sap.ui.define([
             return new Promise(function (resolve, reject) {
                 $.ajax(sUri + "/ErrorRecordSet", {
                     type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify(oPayload),
+                    success: function (response) {
+                        resolve(response);
+                    },
+                    error: function (error) {
+                        reject(error);
+                    }
+                });
+            });
+        },
+
+        getUpdatePromise(oPayload, ID) {
+            const sUri = this.getOwnerComponent().getManifestObject().resolveUri(this.getOwnerComponent().getManifestEntry("sap.app").dataSources.mainService.uri);
+            return new Promise(function (resolve, reject) {
+                $.ajax(sUri + "/ErrorRecordSet/" + ID, {
+                    type: "PUT",
                     contentType: "application/json",
                     data: JSON.stringify(oPayload),
                     success: function (response) {
@@ -222,12 +362,15 @@ sap.ui.define([
         },
 
         setTableProperties() {
+            const oModelData = this.getView().getModel("errorModel").getData();
+            const length = this.existingData.length;
+            this.getView().byId("re-fin-tabTitle").setText(`Errors Assigned (${length})`);
             var oTable = this.getView().byId("re-fin-errorTable");
             var oItems = oTable.getItems();
             for (let index = 0; index < oItems.length; index++) {
                 const element = oItems[index];
                 var errorCode = element.getCells()[0].getProperty("value");
-                if (this.existingData.some(item => item.errorcode === errorCode)) {
+                if (this.existingData.some(item => item.errorcode === errorCode) && oModelData[index].saved ) {
                     element.setHighlight("Success");
                     element.setHighlightText("Pending to save");
                 }else{
@@ -242,7 +385,8 @@ sap.ui.define([
                 "errorCode": "",
                 "description": "",
                 "departmentId": "",
-                "emailId": ""
+                "emailId": "",
+                "saved": false
             }
         }
     });

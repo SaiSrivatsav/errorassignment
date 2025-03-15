@@ -74,7 +74,7 @@
 
                     <!-- <Button icon="sap-icon://edit" enabled="true" type="Attention" press="onEdit" width="auto"></Button> -->
 
-                    <Button icon="sap-icon://delete" enabled="true" type="Reject" press="onDelete" width="auto"></Button>
+                    <Button icon="sap-icon://sys-minus" text="Delete" enabled="true" type="Reject" press="onDelete" width="auto"></Button>
 
                 </ColumnListItem>
             </items>
