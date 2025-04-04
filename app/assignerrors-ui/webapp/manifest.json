@@ -23,6 +23,14 @@
           "annotations": [],
           "odataVersion": "4.0"
         }
+      },
+      "ZBTP_API_COST_ESTIMATE_SRV": {
+        "uri": "/sap/opu/odata/sap/ZBTP_API_COST_ESTIMATE_SRV/",
+        "type": "OData",
+        "settings": {
+          "annotations": [],
+          "odataVersion": "2.0"
+        }
       }
     },
     "crossNavigation": {
@@ -30,7 +38,7 @@
         "errors-update": {
           "semanticObject": "errors",
           "action": "update",
-          "title": "{{errors-update.flpTitle}}",
+          "title": "Error Mapping",
           "subTitle": "{{errors-update.flpSubtitle}}",
           "icon": "sap-icon://tags",
           "info": "Tag error codes to departments",

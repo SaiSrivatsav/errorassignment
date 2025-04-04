@@ -69,9 +69,23 @@ modules:
       - laderafinassignerrorsui.zip
       name: laderafinassignerrorsui
       target-path: resources/
+    - artifacts:
+      - uiconfigmasterdata.zip
+      name: uiconfigmasterdata
+      target-path: resources/
 - name: laderafinassignerrorsui
   type: html5
   path: app/assignerrors-ui
+  build-parameters:
+    build-result: dist
+    builder: custom
+    commands:
+    - npm install
+    - npm run build:cf
+    supported-platforms: []
+- name: uiconfigmasterdata
+  type: html5
+  path: app/configmasterdata
   build-parameters:
     build-result: dist
     builder: custom

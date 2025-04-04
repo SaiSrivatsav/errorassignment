@@ -1,0 +1,82 @@
+<mvc:View controllerName="ui.configmasterdata.controller.Main"
+    xmlns:core="sap.ui.core" xmlns:f="sap.f"
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m">
+    <f:DynamicPage id="re-fin-dynPage" showFooter="true">        
+        <f:content>
+            <Table id="re-fin-errorTable" 
+                    width="auto"
+                    mode="MultiSelect"
+                    multiSelectMode="SelectAll"
+                    selectionChange="onTabSelection"
+                    fixedLayout="false"
+                    inset="true"
+                    items="{masterModel>/}">
+                <headerToolbar>
+                    <OverflowToolbar >
+                        <Title id="re-fin-tabTitle" text="Records" level="H2"></Title>
+                        <ToolbarSpacer ></ToolbarSpacer>
+                        <Button id="re-fin-addError" type="Emphasized" icon="sap-icon://sys-add" text="Add" press="onAddItem"></Button>
+                        <Button id="re-fin-delete" type="Reject" icon="sap-icon://delete" press="onDelete">
+                            <customData>
+                                <BadgeCustomData id="refin-deleteBadge" key="badge" value="" visible="true"></BadgeCustomData>
+                            </customData>
+                        </Button>
+                    </OverflowToolbar>
+                </headerToolbar>
+
+                <noData>
+                    <IllustratedMessage id="re-fin-nodataMsg"
+                                        illustrationType="sapIllus-NoSearchResults"
+                                        title="No errors are assigned to departments"
+                                        description="Click on 'Add Items' to assign errror codes to respective departments">
+                    </IllustratedMessage>                    
+                </noData>
+
+            <columns>
+                <Column>
+                    <header>
+                        <Label text="Plant"></Label>
+                    </header>
+                </Column>
+
+                <Column >
+                    <header>
+                        <Label text="Department"></Label>
+                    </header>
+                </Column>
+
+                <Column >
+                    <header>
+                        <Label text="Email Id"></Label>
+                    </header>
+                </Column>
+            </columns>
+
+            <items>
+                <ColumnListItem>
+                    <Input editable="true" value="{masterModel>plant}" change="onChangePlant" maxLength="10" width="auto" showValueHelp="true" valueHelpRequest="onPlantReq"></Input>
+
+                    <ComboBox items="{path: 'configModel>/Departments', templateShareable: true}" 
+                              editable="true" 
+                              width="auto"
+                              change="onChangeofDepartment" 
+                              selectedKey="{masterModel>departmentId}">
+                        <core:ListItem key="{configModel>departmentId}" text="{configModel>departmentText}"></core:ListItem>
+                    </ComboBox>
+
+                    <Input editable="true" value="{masterModel>email}" change="onChangeEmail" type="Email" width="200px"></Input>
+                </ColumnListItem>
+            </items>
+            </Table>
+        </f:content>
+        <f:footer>
+            <OverflowToolbar >
+                <Button id="re-fin-errorLog" icon="sap-icon://status-error" type="Reject" press="showErrorLogs" visible="false"></Button>
+                <ToolbarSpacer />
+                <Button id="re-fin-saveData" text="Save" type="Emphasized" enabled="true" press="onSave"></Button>
+                <Button id="re-fin-cancel" text="Cancel" press="onCancel"></Button>
+            </OverflowToolbar>
+        </f:footer>
+    </f:DynamicPage>
+</mvc:View>

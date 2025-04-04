@@ -7,8 +7,9 @@ sap.ui.define([
     "sap/ui/core/message/Message",
     "sap/m/MessagePopover",
     "sap/ui/dom/isBehindOtherElement",
-    "sap/ui/core/Element"
-], (Controller, BusyIndicator, JSONModel, MessageBox, Messaging, Message, MessagePopover, isBehindOtherElement, Element)  => {
+    "sap/ui/core/Element",
+    "sap/ui/core/Fragment"
+], (Controller, BusyIndicator, JSONModel, MessageBox, Messaging, Message, MessagePopover, isBehindOtherElement, Element, Fragment)  => {
     "use strict";
 
     var oMessagePopover;
@@ -21,70 +22,79 @@ sap.ui.define([
         onRouteMatched(oEvent) {
             this.getView().getModel("errorModel").setData([]);
             this.existingData = [];
-            //Error Logs Setup
-            this._MessageManager = Messaging;
-            this._MessageManager.removeAllMessages();
-            this._MessageManager.registerObject(this.getView().byId("re-fin-errorTable"), true);
-            this.getView().setModel(this._MessageManager.getMessageModel(),"message");
-            this.errorLogs = [];
-            this.errorItem = this.getView().getModel("configModel").getData().ErrorLogItem;
-            var oJsonErrLogModel = new JSONModel();
-            this.getView().setModel(oJsonErrLogModel, "ErrorLogs");
-            // this.createErrorPopover();
+            this.getPlantData();
             this.setDefaultData(oEvent);
         },
 
-        createErrorPopover(){
-            var that = this;
-            this.oMessagePopover = new MessagePopover({
-				activeTitlePress: function (oEvent) {
-					var oItem = oEvent.getParameter("item"),
-						oPage = that.getView().byId("re-fin-dynPage"),
-						oMessage = oItem.getBindingContext("message").getObject(),
-						oControl = Element.registry.get(oMessage.getControlId());
-
-					if (oControl) {
-						oPage.scrollToElement(oControl.getDomRef(), 200, [0, -100]);
-						setTimeout(function(){
-							var bIsBehindOtherElement = isBehindOtherElement(oControl.getDomRef());
-							if (bIsBehindOtherElement) {
-								this.close();
-							}
-							if (oControl.isFocusable()) {
-								oControl.focus();
-							}
-						}.bind(this), 300);
-					}
-				},
-				items: {
-					path:"ErrorLogs>/",
-					template: new MessageItem(
-						{
-							title: "{ErrorLogs>message}",
-							subtitle: "{ErrorLogs>additionalText}",
-							groupName: {parts: [{path: 'message>controlIds'}], formatter: this.getGroupName},
-							activeTitle: {parts: [{path: 'message>controlIds'}], formatter: this.isPositionable},
-							type: "{message>type}",
-							description: "{message>message}"
-						})
-				},
-				groupItems: true
-			});
-
-			this.getView().byId("messagePopoverBtn").addDependent(this.oMessagePopover);
+        async getMasterData(){
+            const sUri = this.getOwnerComponent().getManifestObject().resolveUri(this.getOwnerComponent().getManifestEntry("sap.app").dataSources.mainService.uri);
+            try {
+                const response = await fetch(sUri + "/MasterConfigSet", {
+                    method: "GET"
+                });
+                if (!response.ok) {
+                    BusyIndicator.hide();
+                } else {
+                    const result = await response.json();
+                    return result.value;
+                }
+            } catch (error) {
+                BusyIndicator.hide();
+                MessageBox.error("Error while trying to fetch master data");
+            }
         },
 
-        getGroupName(sControlId){
-            var oControl = Element.registry.get(sControlId);
-            return "Error code";
+        async getPlantData(){
+            BusyIndicator.show();
+            const sUri = this.getOwnerComponent().getManifestObject().resolveUri(this.getOwnerComponent().getManifestEntry("sap.app").dataSources.ZBTP_API_COST_ESTIMATE_SRV.uri);
+            try {
+                const response = await fetch(sUri + "/zplant_vh_set?$format=json");
+                if (!response.ok) {
+                    let errorText = await response.text();
+                }else{
+                    const responseData = await response.json();
+                    if (responseData) {
+                        const plantData = responseData.d.results;
+                        let oPlantModel = new JSONModel(plantData);
+                        this.getView().setModel(oPlantModel,"PlantHelp");
+                    }
+                }
+                BusyIndicator.hide();
+            } catch (error) {
+                MessageBox.error("Error while fetching plant data from S/4");
+                BusyIndicator.hide();
+            }
         },
 
-        isPositionable(sControlId){
-            return sControlId ? true : true;
+        onPlantSelect(oEvent){
+            let oSelectedItem = oEvent.getParameter("selectedItem").getBindingContext("PlantHelp").getObject().Werks;
+            oEvent.getSource().getBinding("items").filter([]);
+            if (!oSelectedItem) {
+                return;
+            }
+            this.plantInput.setValue(oSelectedItem);
+        },
+
+        onPlantReq(oEvent){
+            this.plantInput = oEvent.getSource();
+            var oView = this.getView();
+                if (!this.oPlantPopup) {
+                    this.oPlantPopup = Fragment.load({
+                        controller: this,
+                        name: "ladera.fin.assignerrorsui.view.fragments.PlantHelp"
+                    }).then(function (oDialog) {
+                        oView.addDependent(oDialog);
+                        return oDialog;
+                    })
+                }
+                this.oPlantPopup.then(function (oDialog) {
+                    oDialog.open();
+                });
         },
 
         async setDefaultData(oEvent) {
             BusyIndicator.show();
+            this.masterData = await this.getMasterData();
             this.existingData = await this._getSavedErrors();
             var oModel = this.getView().getModel("errorModel");
             var aData = [];
@@ -92,6 +102,8 @@ sap.ui.define([
                 for (let index = 0; index < this.existingData.length; index++) {
                     const element = this.existingData[index];
                     var oPayload = this.getEmptyLine();
+                    oPayload.ID = element.ID;
+                    oPayload.plant = element.plant;
                     oPayload.errorCode = element.errorcode;
                     oPayload.description = element.description;
                     oPayload.departmentId = element.department;
@@ -112,23 +124,7 @@ sap.ui.define([
                     method: "GET"
                 });
                 if (!response.ok) {
-                    const errorText = await response.text();
-
-                    let oErrorItem = {
-                        "errorCode": response.status,
-                        "message": errorText,
-                        "subtitle": "Initial load",
-                        "target": "",
-                        "title": "Initial load",
-                        "activeTitle": "Initial fetch",
-                        "groupName": response.status
-                    }
-                    this.errorLogs.push(oErrorItem);
-                    this.getView().getModel("ErrorLogs").setData(this.errorLogs);
-                    this.viewLogs();
-
                     BusyIndicator.hide();
-                    //MessageBox.error(errorText);
                 } else {
                     const result = await response.json();
                     return result.value;
@@ -139,77 +135,102 @@ sap.ui.define([
             }
         },
 
-        viewLogs(){
-            var oErrorLog = this.getView().byId("re-fin-errorLog");
-            oErrorLog.setText(this.errorLogs.length);
-            oErrorLog.setVisible(true);
-            // this.getView().getModel("ErrorLogs").setData(this.errorLogs);
-
-            var oMessageTemplate = new sap.m.MessageItem({
-                type: 'Error',
-                title: '{ErrorLogs>message}'
-            });
-
-            this.oMessagePopover = new sap.m.MessagePopover({
-                items:{
-                    path: 'ErrorLogs>/',
-                    template: oMessageTemplate
-                },
-                groupItems: true
-            });
-
-            oErrorLog.addDependent(this.oMessagePopover);
-            oErrorLog.firePress();
-        },
-
-        showErrorLogs(oEvent){
-            this.byId("re-fin-errorLog").addEventDelegate({
-                "onAfterRendering": function () {
-                this.oMessagePopover.openBy(this.byId("re-fin-errorLog"));
-                 }
-                }, this);
-           this.oMessagePopover.toggle(oEvent.getSource());
-        },
-
-        onEdit(oEvent) {
-            var sEditIndex = oEvent.getSource().getParent().getBindingContext("errorModel").sPath.split("/")[1];
-            this.enableEdit(sEditIndex);
-        },
-
-        enableEdit(sIndex){
-            const oTable = this.getView().byId("re-fin-errorTable");
-            const oCells = oTable.getItems()[sIndex].getAggregation("cells");
-            for (let index = 0; index < oCells.length - 2; index++) {
-                const element = oCells[index];
-                element.setEditable(true);
+        onTabSelection(oEvent){
+            const selectedPaths = oEvent.getSource().getSelectedContexts();
+            if (selectedPaths.length > 0) {
+                this.getView().byId("refin-deleteBadge").setValue(selectedPaths.length);
+            }else{
+                this.getView().byId("refin-deleteBadge").setValue("");
             }
         },
 
         async onDelete(oEvent) {
-            var sDeleteIndex = oEvent.getSource().getParent().getBindingContext("errorModel").sPath.split("/")[1];
-            const oErrorCode = oEvent.getSource().getModel("errorModel").getData()[sDeleteIndex];
-            const exists = this.existingData.some(item => item.errorcode === oErrorCode.errorCode);
-            if (exists && oErrorCode.saved) {
-                var that = this;
-                MessageBox.confirm("Are you sure? This entry will be permanently deleted from the database.", {
+            var that = this;
+            let selectedPaths = this.getView().byId("re-fin-errorTable").getSelectedContextPaths();
+            if (selectedPaths.length > 0) {
+                MessageBox.confirm("Are you sure you want to delete this entry?", {
                     actions: ["Yes", MessageBox.Action.CLOSE],
                     emphasizedAction: "CLOSE",
                     onClose: async function (sAction) {
                         if (sAction === 'Yes') {
-                            const delResp = await that.removeEntry(oErrorCode, oEvent);
-                            if (delResp) {
-                                oEvent.getSource().getModel("errorModel").getData().splice(sDeleteIndex, 1);
-                                oEvent.getSource().getModel("errorModel").refresh();                
-                            }
-
+                            await that.removeSelectedRecords(oEvent);
                         }                        
                     }
-                });
-            } else {
-                oEvent.getSource().getModel("errorModel").getData().splice(sDeleteIndex, 1);
-                oEvent.getSource().getModel("errorModel").refresh();
+                }); 
             }
-            this.setTableProperties();
+        },
+
+        async removeSelectedRecords(oEvent){
+            let selectedPaths = this.getView().byId("re-fin-errorTable").getSelectedContextPaths();
+            var deletePromises=[];
+            var unsavedDeletions=[];
+            for (let index = 0; index < selectedPaths.length; index++) {
+                let element = selectedPaths[index];
+                let deletionIndex = parseInt(element.split("/")[1]);
+                let ID = this.getView().getModel("errorModel").getData()[deletionIndex].ID;
+                let errorCode = this.getView().getModel("errorModel").getData()[deletionIndex].errorCode;
+                let plant = this.getView().getModel("errorModel").getData()[deletionIndex].plant;
+                let department = this.getView().getModel("errorModel").getData()[deletionIndex].departmentId;
+                let savedCheck = this.getView().getModel("errorModel").getData()[deletionIndex].saved;
+                if (ID) {
+                    let exists = true;
+                }
+                if (ID && savedCheck) {
+                    deletePromises.push(this.getDeletePromise(ID));
+                }else{
+                    let deletePayload = {
+                        "errorCode": errorCode,
+                        "plant": plant,
+                        "department": department
+                    };
+                    unsavedDeletions.push(deletePayload);
+                }
+            }
+            if (deletePromises.length > 0) {
+                var that = this;
+                BusyIndicator.show();
+                await Promise.all(deletePromises).then(async function (oResp, oError) {
+                    await that.setDefaultData(oEvent);
+                    MessageBox.success("Records deleted successfully");
+                    BusyIndicator.hide();
+                }).catch(function (oErr) {
+                    BusyIndicator.hide();
+                    const errorResp = JSON.parse(oErr.responseText).error;
+                    MessageBox.error("Error while deleting selected data");
+                });
+            }
+            if (unsavedDeletions.length > 0) {
+                let oData = this.getView().getModel("errorModel").getData();
+                for (let index = this.getView().getModel("errorModel").getData().length - 1; index >= 0; index--) {
+                    const element = this.getView().getModel("errorModel").getData()[index];
+                    const exists = unsavedDeletions.some(item =>  item.errorCode === element.errorCode && item.plant === element.plant && item.department === element.departmentId);
+                    if (exists) {
+                        this.getView().getModel("errorModel").getData().splice(index, 1);
+                        this.getView().getModel("errorModel").refresh();
+                    }
+                }
+            }
+            this.getView().byId("re-fin-errorTable").removeSelections();
+            this.getView().byId("refin-deleteBadge").setValue("");
+            this.setTableProperties(); 
+    },
+
+        getDeletePromise(ID){
+            const sUri = this.getOwnerComponent().getManifestObject().resolveUri(this.getOwnerComponent().getManifestEntry("sap.app").dataSources.mainService.uri);
+                let deletionId = ID
+                if (deletionId) {
+                    return new Promise(function (resolve, reject) {
+                        $.ajax(sUri + "/ErrorRecordSet" + `('${deletionId}')`, {
+                            type: "DELETE",
+                            success: function (response) {
+                                resolve(response);
+                            },
+                            error: function (error) {
+                                reject(error);
+                            }
+                        });
+                    });
+                }
         },
 
         async removeEntry(oErrorCode, oEvent) {
@@ -223,11 +244,9 @@ sap.ui.define([
                         const deleteIndex = oEvent.getSource().getParent().getBindingContext("errorModel").sPath.split("/")[1];
                         oEvent.getSource().getModel("errorModel").getData().splice(deleteIndex, 1);
                         oEvent.getSource().getModel("errorModel").refresh();
-                        return true;
                     },
                     error: function (error) {
                         MessageBox.error(JSON.parse(error.responseText).error.message);
-                        return false;
                     }
                 });
             }
@@ -246,7 +265,7 @@ sap.ui.define([
                 for (let index = 0; index < oData.length; index++) {
                     var element = oData[index];
                     if (!element.saved) {
-                        var checkExist = this.existingData.some(item => item.errorcode === element.errorCode);
+                        var checkExist = this.existingData.some(item => item.errorcode === element.errorCode && item.plant === element.plant);
                         if (checkExist) {
                             MessageBox.error(`Error code ${element.errorCode}  already exists.`);
                             executeCheck = false;
@@ -255,6 +274,7 @@ sap.ui.define([
                         }else {
                             oPayload = {
                                 "errorcode": element.errorCode,
+                                "plant": element.plant,
                                 "description": element.description,
                                 "department": element.departmentId,
                                 "emailId": element.emailId
@@ -264,11 +284,12 @@ sap.ui.define([
                     }else{
                         oUpdatePayload = {
                             "errorcode": element.errorCode,
+                            "plant": element.plant,
                             "description": element.description,
                             "department": element.departmentId,
                             "emailId": element.emailId
                         };
-                        const ID = this.existingData.find(item => item.errorcode === element.errorCode).ID;
+                        const ID = element.ID;
                         aPromises.push(this.getUpdatePromise(oUpdatePayload, ID));
                     }
                 };
@@ -385,7 +406,9 @@ sap.ui.define([
 
         getEmptyLine() {
             return {
+                "ID": "",
                 "errorCode": "",
+                "plant": "",
                 "description": "",
                 "departmentId": "",
                 "emailId": "",

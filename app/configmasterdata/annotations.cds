@@ -1,0 +1,1 @@
+using errorassign.srv.ErrorAssignService as service from '../../srv/errorassign-srv';

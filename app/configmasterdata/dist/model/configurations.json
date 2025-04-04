@@ -1,0 +1,33 @@
+{
+    "Departments": [
+        {
+            "departmentId": "MDM",
+            "departmentText": "MDM Team"
+        },
+        {
+            "departmentId": "MM",
+            "departmentText": "MM Team"
+        },
+        {
+            "departmentId": "FI",
+            "departmentText": "Finance Team"
+        },
+        {
+            "departmentId": "PO",
+            "departmentText": "PO Creation Cell Team"
+        },
+        {
+            "departmentId": "PPC",
+            "departmentText": "SAP PPC Team"
+        }
+    ],
+    "ErrorLogItem":{
+        "errorCode": "",
+        "message": "",
+        "subtitle": "",
+        "target": "",
+        "title": "",
+        "activeTitle": "",
+        "groupName": ""
+    }
+}

@@ -1,11 +1,14 @@
 <mvc:View xmlns:core="sap.ui.core" xmlns:f="sap.f" controllerName="ladera.fin.assignerrorsui.controller.Main"
     xmlns:mvc="sap.ui.core.mvc"
     xmlns="sap.m">
+    
     <f:DynamicPage id="re-fin-dynPage" showFooter="true">        
         <f:content>
             <Table id="re-fin-errorTable" 
                     width="auto"
-                    mode="None"
+                    mode="MultiSelect"
+                    multiSelectMode="SelectAll"
+                    selectionChange="onTabSelection"
                     fixedLayout="false"
                     inset="true"
                     items="{errorModel>/}">
@@ -14,6 +17,11 @@
                         <Title id="re-fin-tabTitle" text="Errors Assigned(0)" level="H2"></Title>
                         <ToolbarSpacer ></ToolbarSpacer>
                         <Button id="re-fin-addError" type="Emphasized" icon="sap-icon://sys-add" text="Add" press="onAddItem"></Button>
+                        <Button icon="sap-icon://delete" enabled="true" type="Reject" press="onDelete" width="auto">
+                            <customData>
+                                <BadgeCustomData id="refin-deleteBadge" value=""></BadgeCustomData>
+                            </customData>
+                        </Button>
                     </OverflowToolbar>
                 </headerToolbar>
 
@@ -34,6 +42,12 @@
 
                 <Column>
                     <header>
+                        <Label text="Plant"></Label>
+                    </header>
+                </Column>
+
+                <Column>
+                    <header>
                         <Label text="Description"></Label>
                     </header>
                 </Column>
@@ -44,7 +58,7 @@
                     </header>
                 </Column>
 
-                <Column >
+                <Column visible="false">
                     <header>
                         <Label text="Email Id"></Label>
                     </header>
@@ -60,6 +74,8 @@
                 <ColumnListItem>
                     <Input editable="true" value="{errorModel>errorCode}" maxLength="10" width="auto"></Input>
 
+                    <Input editable="true" value="{errorModel>plant}" maxLength="10" width="auto" showValueHelp="true" valueHelpRequest="onPlantReq"></Input>
+
                     <Input editable="true" value="{errorModel>description}" maxLength="80" width="400px"></Input>
 
                     <ComboBox items="{path: 'configModel>/Departments', templateShareable: true}" 
@@ -71,10 +87,6 @@
                     </ComboBox>
 
                     <Input editable="true" value="{errorModel>emailId}" type="Email" width="200px"></Input>
-
-                    <!-- <Button icon="sap-icon://edit" enabled="true" type="Attention" press="onEdit" width="auto"></Button> -->
-
-                    <Button icon="sap-icon://sys-minus" text="Delete" enabled="true" type="Reject" press="onDelete" width="auto"></Button>
 
                 </ColumnListItem>
             </items>
